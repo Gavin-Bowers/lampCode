@@ -22,7 +22,7 @@ Then open a terminal in downloads and run
 		python get-pip.py
 
 Step 3. 
-	Use pip to install numpy, matplotlib, scipy, pygame, and sounddevice 
+	Use pip to install numpy, matplotlib, scipy, pygame, pySerial, and sounddevice 
 	(if you have issues later, check requirements.txt for specific versions)
 
 Step 4.
