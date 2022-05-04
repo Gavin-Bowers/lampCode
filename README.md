@@ -1,7 +1,10 @@
 
 The original program was made by aiXander (https://github.com/aiXander/Realtime_PyAudio_FFT)
+
 This lamp version was made by Gavin Bowers
+
 This program was tested on Windows 10 but might work elsewhere
+
 This is for the 15" lamp with 51 LEDs. If you have a different size, you'll need to edit the code.py and other files to replace instances of 51 or 50 with your number of LEDs
 
 Step 1. 
