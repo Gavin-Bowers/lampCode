@@ -11,9 +11,11 @@ Step 1.
 Step 2. 
 	Install pip
 	Download the installer by opening a terminal and running
+		
 		curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 
-	Then open a terminal in downloads and run
+Then open a terminal in downloads and run
+	
 		python get-pip.py
 
 Step 3. 
@@ -30,20 +32,22 @@ Step 5.
 
 Step 6.
 	Find the virtual input by running the following in python (you can open python by typing "python" into the terminal)
+		
 		import sounddevice as sd
 		print(sd.query_devices())
-	This will list your audio devices. Find the number for "VoiceMeeter Input (VB-Audio Voi, MME (0 in, 2 out)"
+
+This will list your audio devices. Find the number for "VoiceMeeter Input (VB-Audio Voi, MME (0 in, 2 out)"
 
 Step 7. 
 	Open ls.py in a coding environment or text editor. Find 
-		parser.add_argument('--device'...
+		parser.add_argument('--device'
 	and change the default value to the number of the audio device. Save the file
 
 Step 8. 
 	Open stream_analyzer.py (in src) in a coding environment or text editor. Find 
-		self.ser = serial.Serial(port='COM4'..
+		self.ser = serial.Serial(port='COM4'
 	and change COM4 to whichever COM port the lamp connects to
-	If you don't know which, open Mu (install it if you need to) and hover the mouse over the chip icon in the bottom right (while the lamp is plugged in)
+	If you don't know which, open Mu (install it if you need to) (Circuitpython) and hover the mouse over the chip icon in the bottom right (while the lamp is plugged in)
 
 Step 9. 
 	If you haven't already, connect your lamp with a data USB to micro USB male-male cable. Open the lamp's folder and copy code.py from this folder onto the lamp
