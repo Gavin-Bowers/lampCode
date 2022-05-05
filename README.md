@@ -7,7 +7,7 @@ This lamp version was made by Gavin Bowers
 
 This program was tested on Windows 10 but might work elsewhere
 
-This is for the 15" lamp with 51 LEDs. If you have a different size, you'll need to edit the code.py and other files to replace instances of 51 or 50 with your number of LEDs
+This is for the 15" lamp with 51 LEDs. If you have a different size, you'll need to edit the code.py to change pixelCount to your number of LEDs. Buffer should probably be set to 0, it's the number of pixels to not use for the audio visualizer at the start of the light strip (I have one that sticks out)
 
 Step 1. 
 	Install Python 3.10
