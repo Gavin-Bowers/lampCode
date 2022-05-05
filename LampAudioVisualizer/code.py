@@ -1,6 +1,6 @@
 import supervisor
 import board
-import neopixel
+import neopixel #If missing, download adafruit circuitpython 6.X bundle and move neopixel.mpy into the drive for this device
 import time
 from digitalio import DigitalInOut, Direction, Pull
 import analogio
@@ -11,28 +11,25 @@ import array
 import math
 import random
 import array
-from adafruit_led_animation.animation.colorcycle import ColorCycle
 
-#Necessary but pointless audio configuration
+#Pointless, but seemingly needed audio configuration
+
 mic = audiobusio.PDMIn(clock_pin=board.GP3, data_pin=board.GP2,mono=True, sample_rate=16000, bit_depth=16)
 btn = DigitalInOut(board.GP9)
 btn.direction = Direction.INPUT
 btn.pull = Pull.UP
 
-pixelCount = 51 #LED strip setup
-pixels = neopixel.NeoPixel(board.GP5, pixelCount, brightness=.3, auto_write=False)
+#Led Setup
 
-#Parameters
+pixelCount = 51 #Change to the number of LEDs on your light strip
+buffer = 1 #the number of pixels you don't want to use at the start of the strip (probably set this to 0)
+half = math.floor((pixelCount-buffer)/2.0) #If the (pixelCount - buffer) is odd, stuff might break, but hopefully not
+pixels = neopixel.NeoPixel(board.GP5, pixelCount, brightness=0.3, auto_write=False) #This actually sets the universal brightness
+
+#General Parameters
 
 pressed = False #Mode switching stuff
 animationMode = 0
-
-pi = math.pi
-scroll = 0.0 #Audio Visualizer parameters
-curve = 200.0
-chroma = 10.0
-overdrive = 2 #Default is 1. Increase it to crank the brightness up. Can be decreased as well. Works from 0 to arbitrarily high, but a reasonable range is 0.5 to 4.
-                #At high settings, especially bright LEDs become rainbow, which I think is because RGB values exceeding 256 wrap around
 
 #Utilities
 
@@ -51,12 +48,16 @@ def wheel(pos):
 
 # MODES:
 
-smoothing = 0.01
+#Flame Parameters
 
-def runFireAnimation():
+smoothing = 0.01 #Flame smoothing
+flamePixels = []
+for i in range(pixelCount):
+    flamePixels.append([0,0,0,0]) #hue, brightness, Flicker speed, Flicker direction
+
+def runFireAnimation(brightness):
     global smoothing
     for i in range(pixelCount):
-
         if 0 < i < pixelCount - 1: #Smoothing
             flamePixels[i][1] -= (flamePixels[i][1]-flamePixels[i-1][1]) * smoothing
             flamePixels[i][1] -= (flamePixels[i][1]-flamePixels[i+1][1]) * smoothing
@@ -85,44 +86,52 @@ def runFireAnimation():
 
         hue = wheel(flamePixels[i][0])
         br = flamePixels[i][1] / 255
-        pixels[i] = (hue[0]*br,hue[1]*br,0)
+        pixels[i] = (hue[0]*br*brightness,hue[1]*br*brightness,0)
     pixels.show()
 
-flamePixels = []
-for i in range(pixelCount):
-    flamePixels.append([0,0,0,0]) #hue, brightness, Flicker speed, Flicker direction
+#Audio Visualizer Parameters
 
-def runAudioVisualizer():
-    global scroll, curve, chroma, overdrive, pi
-    if supervisor.runtime.serial_bytes_available: #Take serial input for lightshow
+downtime = 0 #no touch
+scroll = 0.0 #no touch
+chroma = 0.01 #Factor of the raw color value
+whiteness = 0.1 #Factor of the value added to each color ((val ^ 1.5) * this)
+maxVal = 255 #Max R/G/B value. Setting this above 255 allows for inverted colors by wrapping around
+rainbowness = 3 #How many colors display at once. Causes issues if set higher than 10
+
+def audioVis(hasData):
+    global half, buffer, scroll, chroma, rainbowness, contrast, whiteness
+    scrollJuice = 0.0
+    pixels.fill((0,0,0))
+    if hasData:
         value = bytes(input(), 'utf-8')
         temp = value.strip(b' ')
         lightshow = temp.split(b' ')
-        pixels.fill((0,0,0))
-        i = 0
         val = 0.0
-        for light in lightshow:
-            if i < 26:
-                j=abs(25-i)
-                try:
-                    val = min(100.0,float(light))
-                except ValueError:
-                    val = 0
-                scroll -= min(0.0004 * val * val,1) + 0.005 #Sets the rainbow scroll speed, which is based on total volume squared. It has a min and max value, but the min value doesn't work sometimes
-                hue1 = math.cos((j-(00*pi)+scroll)/(3*pi)) #Finds the Red value for the LED with sinusoids so the rainbow can scroll
-                r = overdrive*max(0,val*((250-(hue1))/curve)+(hue1*chroma)) #Makes the LED whiter as volume at that frequency increases
-                hue2 = math.cos((j-(25*pi)+scroll)/(3*pi)) #Green value
-                g = overdrive*max(0,val*((250-(hue2))/curve)+(hue2*chroma))
-                hue3 = math.cos((j-(50*pi)+scroll)/(3*pi)) #Blue value
-                b = overdrive*max(0,val*((250-(hue3))/curve)+(hue3*chroma))
-                if val<2: #Improves gradient appearance when at low brightness
-                    r *= (2 / max(overdrive,1)) #Allows overdrive values below 1
-                    g *= (2 / max(overdrive,1))
-                    b *= (2 / max(overdrive,1))
-                pixels[min(25+i,51)] = (math.ceil(r),math.ceil(g),math.ceil(b))
-                pixels[max(25-i,1)] = (math.ceil(r),math.ceil(g),math.ceil(b))
-                i += 1
-        pixels.show()
+    for i in range(half):
+        if hasData:
+            try:
+                val = min(100.0,float(lightshow[min(i,len(lightshow)-1)]))
+            except ValueError:
+                val = 0
+        else:
+            val = 0
+        scrollJuice += min(0.0005 * val * val,5)
+        temp = scroll+((half-i)*rainbowness)
+        if temp < 0:
+            temp = 255 + temp #Rainbow wrapping logic
+        if temp > 255:
+            temp = 255 - temp
+        hue = wheel(temp)
+        r = min(max(hue[0]*val*chroma+(math.sqrt(val*val*val)*whiteness),hue[0]*0.1),maxVal)
+        g = min(max(hue[1]*val*chroma+(math.sqrt(val*val*val)*whiteness),hue[1]*0.1),maxVal)
+        b = min(max(hue[2]*val*chroma+(math.sqrt(val*val*val)*whiteness),hue[2]*0.1),maxVal)
+        pixels[(half+i)+buffer] = (r,g,b)
+        pixels[(half-(i+1))+buffer] = (r,g,b)
+        i += 1
+    scroll = scroll + 1 + scrollJuice
+    if scroll+(half*rainbowness) > 255:
+        scroll = -(half*rainbowness) #Because this value is added to the "front" of the rainbow, it cancels out so it loops properly
+    pixels.show()
 
 print("Running...")
 
@@ -131,21 +140,31 @@ while True:
         if pressed == False:
             pressed = True
             animationMode = animationMode + 1
-            if animationMode > 2:
+            if animationMode > 4:
                 animationMode = 0
             print("Mode is now mode: ", animationMode)
     else:
         pressed = False
 
     if (animationMode == 0):
-        runAudioVisualizer()
-    elif supervisor.runtime.serial_bytes_available: #This keeps the serial clear if the PC program is running while the lamp is on another mode
-        trash = input()
+        if supervisor.runtime.serial_bytes_available:
+            downtime = 0
+            audioVis(1)
+        else:
+            downtime += 1
+            if downtime > 999:
+                audioVis(0)
 
     if (animationMode == 1):
-        runFireAnimation()
+        runFireAnimation(1)
 
     if (animationMode == 2):
+        runFireAnimation(0.7)
+
+    if (animationMode == 3):
+        runFireAnimation(0.4)
+
+    if (animationMode == 4):
         pixels.fill((0,0,0))
         pixels.show()
         time.sleep(0.1)
