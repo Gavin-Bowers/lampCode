@@ -124,6 +124,8 @@ def runAudioVisualizer():
                 i += 1
         pixels.show()
 
+print("Running...")
+
 while True:
     if btn.value == False: #Mode switching
         if pressed == False:
@@ -131,6 +133,7 @@ while True:
             animationMode = animationMode + 1
             if animationMode > 2:
                 animationMode = 0
+            print("Mode is now mode: ", animationMode)
     else:
         pressed = False
 
