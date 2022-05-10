@@ -14,17 +14,17 @@ import array
 
 #Pointless, but seemingly needed audio configuration
 
-mic = audiobusio.PDMIn(clock_pin=board.GP3, data_pin=board.GP2,mono=True, sample_rate=16000, bit_depth=16)
-btn = DigitalInOut(board.GP9)
+#mic = audiobusio.PDMIn(clock_pin=board.GP3, data_pin=board.GP2,mono=True, sample_rate=16000, bit_depth=16)
+btn = DigitalInOut(board.GP2)
 btn.direction = Direction.INPUT
 btn.pull = Pull.UP
 
 #Led Setup
 
-pixelCount = 51 #Change to the number of LEDs on your light strip
-buffer = 1 #the number of pixels you don't want to use at the start of the strip (probably set this to 0)
+pixelCount = 34 #Change to the number of LEDs on your light strip
+buffer = 0 #the number of pixels you don't want to use at the start of the strip (probably set this to 0)
 half = math.floor((pixelCount-buffer)/2.0) #If the (pixelCount - buffer) is odd, stuff might break, but hopefully not
-pixels = neopixel.NeoPixel(board.GP5, pixelCount, brightness=0.3, auto_write=False) #This actually sets the universal brightness
+pixels = neopixel.NeoPixel(board.GP0, pixelCount, brightness=0.3, auto_write=False) #This actually sets the universal brightness
 
 #General Parameters
 
@@ -96,7 +96,7 @@ scroll = 0.0 #no touch
 chroma = 0.01 #Factor of the raw color value
 whiteness = 0.1 #Factor of the value added to each color ((val ^ 1.5) * this)
 maxVal = 255 #Max R/G/B value. Setting this above 255 allows for inverted colors by wrapping around
-rainbowness = 3 #How many colors display at once. Causes issues if set higher than 10
+rainbowness = 6 #How many colors display at once. Causes issues if set higher than 10
 
 def audioVis(hasData):
     global half, buffer, scroll, chroma, rainbowness, contrast, whiteness
@@ -168,7 +168,6 @@ while True:
         pixels.fill((0,0,0))
         pixels.show()
         time.sleep(0.1)
-
 
 
 
