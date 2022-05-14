@@ -11,8 +11,7 @@ Step 1.
 	Install Python 3.10. Look up how if you need to. The tutorial should tell you to edit the environment variables so you can access it anywhere. Make sure to do so
 
 Step 2. 
-	Install pip
-	Download the installer by opening a terminal and running
+	Install pip. Download the installer by opening a terminal and running
 		
 		curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 
