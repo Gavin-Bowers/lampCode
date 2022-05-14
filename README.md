@@ -7,8 +7,6 @@ This lamp version was made by Gavin Bowers
 
 This program was tested on Windows 10 but might work elsewhere
 
-This is for the 15" lamp with 51 LEDs. If you have a different size, you'll need to edit the code.py to change pixelCount to your number of LEDs. Buffer should probably be set to 0, it's the number of pixels to not use for the audio visualizer at the start of the light strip (I have one that sticks out)
-
 Step 1. 
 	Install Python 3.10. Look up how if you need to. The tutorial should tell you to edit the environment variables so you can access it anywhere. Make sure to do so
 
@@ -53,14 +51,14 @@ Step 8.
 	and change COM4 to whichever COM port the lamp connects to
 	If you don't know which, open Mu (install it if you need to) (Circuitpython) and hover the mouse over the chip icon in the bottom right (while the lamp is plugged in)
 
-Step 9. 
-	If you haven't already, connect your lamp with a data USB to micro USB male-male cable. Open the lamp's folder and copy code.py from this folder onto the lamp
+Step 9.
+	Open code.py and change pixelCount to your number of LEDs (34 for smaller lamps). Probably set buffer to 0. Also change the pins (marked with <--) to the 	  correct ones for your device.
+Step 10. 
+	If you haven't already, connect your lamp with a data USB to micro USB male-male cable. Open the lamp's folder and copy code.py from this folder onto the lamp.
+	If the device's folder doesn't have neopixel.mpy, add it from this folder.
 
-Step 10.
+Step 11.
 	Close Mu if it's open as it can interfere with serial communication
 
-Step 11. 
-	Run runLightshow.bat by double clicking it
-
 Step 12. 
-	Pray
+	Run runLightshow.bat by double clicking it
