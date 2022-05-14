@@ -3,9 +3,9 @@ Audio visualizer from aiXander (https://github.com/aiXander/Realtime_PyAudio_FFT
 
 Lamp code from Nick Ruffalo (https://github.com/nruffilo/BitsnBots/blob/master/CrystalLamp/code.py)
 
-This lamp version was made by Gavin Bowers
+Lightshow by Gavin Bowers
 
-This program was tested on Windows 10 but might work elsewhere
+This program was tested on Windows 10 but should work elsewhere
 
 Step 1. 
 	Install Python 3.10. Look up how if you need to. The tutorial should tell you to edit the environment variables so you can access it anywhere. Make sure to do so
@@ -21,8 +21,7 @@ Then open a terminal in downloads and run
 		python get-pip.py
 
 Step 3. 
-	Use pip to install numpy, matplotlib, scipy, pygame, pySerial, and sounddevice 
-	(if you have issues later, check requirements.txt for specific versions)
+	Use pip to install numpy, matplotlib, scipy, pygame, pySerial, and sounddevice. Check requirements.txt for versions (although I don't think anything is version sensitive)
 
 Step 4.
 	Download Voicemeeter. It's free and you need it to use an audio output as an input to the program 
@@ -42,10 +41,12 @@ Step 6.
 This will list your audio devices. Find the number for "VoiceMeeter Input (VB-Audio Voi, MME (0 in, 2 out)"
 
 Step 7. 
-	Edit runLightshow.bat. If you can't edit it, rename it to runLightshow.txt and edit it, then revert it afterwards.
+	Edit runLightshow.bat. If you can't edit it, rename it to runLightshow.txt to edit it, then revert it afterward.
 	Change the --device value to the number of your virtual audio device.
-	Change the port value to whichever serial port your lamp connects to.
+	Change the --port value to whichever serial port your lamp connects to.
 	If you don't know which, open Mu (install it if you need to, select circuitpython as the language) and hover the mouse over the chip icon in the bottom right while the lamp is plugged in
+	Change the --n_frequency_bins number. This should be at least half the number of leds on your lamp, but it should probably be set higher to cut off some of the rarely used high frequencies (I use 35 when 25 is half my number of LEDs)
+	Change the --window_size and --smoothing_length values. Increasing these will make the lightshow smoother but less responsive. They don't have to be the same.
 	
 
 Step 8.
