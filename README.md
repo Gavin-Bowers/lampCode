@@ -44,8 +44,8 @@ Step 7.
 	Change the --device value to the number of your virtual audio device.
 	Change the --port value to whichever serial port your lamp connects to.
 	If you don't know which, open Mu (install it if you need to, select circuitpython as the language) and hover the mouse over the chip icon in the bottom right while the lamp is plugged in
-	Change the --n_frequency_bins number. This should be at least half the number of leds on your lamp, but it should probably be set higher to cut off some of the rarely used high frequencies (I use 35 when 25 is half my number of LEDs)
-	Change the --window_size and --smoothing_length values. Increasing these will make the lightshow smoother but less responsive. They don't have to be the same.
+	Change the --n_frequency_bins number. This needs to be at least half the number of leds on your lamp, but it should probably be set higher to cut off some of the rarely used high frequencies (I use 35 when 25 is half my number of LEDs)
+	Optionally, you can change the --window_size and --smoothing_length values. Increasing these will make the lightshow smoother but less responsive. They don't have to be the same.
 	
 
 Step 8.
