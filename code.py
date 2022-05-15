@@ -29,112 +29,135 @@ buffer = 1 #The number of pixels you don't want to use at the start of the strip
 half = math.floor((pixelCount-buffer)/2.0) #If the (pixelCount - buffer) is odd, stuff might break
 pixels = neopixel.NeoPixel(board.GP5, pixelCount, brightness=1, auto_write=False) #GP0 for smaller lamps <--
 
-#Parameters (now in one convenient location)
-
-#General
+#General Parameters
 pressed = False #Button value
-dcWait = 0 #Double Click timer
+dcWait = 0 #Double click timer
 animationMode = 0 #Which animation is displaying
 brightness = 1 #LED Brightness
 brIncrement = 0.2 #Amount the brightness changes per button press. 0 to 1. default 0.2
 
-#Audio Visualizer Parameters
-downtime = 0 #no touch
-scroll = 0.0 #no touch
-scrollSpeed = 3.0 #Scroll speed. Default is 1
-chroma = 0.02 #Factor of the raw color value. Default is 0.01
-whiteness = 0.1 #Factor of the value added to each color. Default is 0.15
-maxVal = 255 #Max R/G/B value. Setting this above 255 allows for inverted colors by wrapping around
-rainbowness = 1.0 #How many colors to display at once. Works if greater than 0, but the reasonable range is from 1 to 10. 80 is fun
-blending = 1 #How blended the colors are. Default is 0.5. Works reasonably from 0 to 2
-
-#Fire Parameters and setup
-smoothing = 0.01 #Flame smoothing
-flamePixels = []
-for i in range(pixelCount):
-    flamePixels.append([0,0,0,0]) #hue, brightness, Flicker speed, Flicker direction
-
 #Utilities
 
-def wheel(pos):
-    #kind of stinky. Only used by fire animation now
-    # Input a value 0 to 255 to get a color value.
-    # The colours are a transition r - g - b - back to r.
-    if pos < 0 or pos > 255:
-        return (0, 0, 0)
-    if pos < 85:
-        return (255 - pos * 3, pos * 3, 0)
-    if pos < 170:
-        pos -= 85
-        return (0, 255 - pos * 3, pos * 3)
-    pos -= 170
-    return (pos * 3, 0, 255 - pos * 3)
+def wheel(x, blending): #(Turns 0-255 into color from r-g-b. b is for blending, from -0.8 to 1)
+    hue = colorCalc([(255,0,0),(0,255,0),(0,0,255)], x, blending, 255)
+    return (hue)
+
+def colorCalc(colors, x, blending, r): #r is for range
+    d = len(colors)
+    wRed = 0.0 #sum of weighted red values
+    sumRed = 0.0 #sum of red weights
+    wGreen = 0.0
+    sumGreen = 0.0
+    wBlue = 0.0
+    sumBlue = 0.0
+    for i in range(d):
+        weight = max(0,(math.cos((2*math.pi*(x-((i*r)/d)))/r)+blending)/(1+blending))
+        wRed += colors[i][0] * weight
+        sumRed += weight
+        wGreen += colors[i][1] * weight
+        sumGreen += weight
+        wBlue += colors[i][2] * weight
+        sumBlue += weight
+    red = math.floor(wRed / sumRed)
+    green = math.floor(wGreen / sumGreen)
+    blue = math.floor(wBlue / sumBlue)
+    color = (red,green,blue)
+    return(color)
 
 #Modes:
+class audioVisualizer():
+    def __init__(self, colors, rainbowness, blending, scrollSpeed):
+        global half
+        self.colors = colors
+        self.scroll = 0.0 #Don't touch
+        self.scrollSpeed = scrollSpeed #Scroll speed. Default is 1. Advisable to change inversely to rainbowness
+        self.scrollJuice = 0.0
+        self.chroma = 0.02 #Factor of the raw color value. Default is 0.01
+        self.whiteness = 0.1 #Factor of the value added to each color. Default is 0.15
+        self.maxVal = 255 #Max R/G/B value. Setting this above 255 allows for inverted colors by wrapping around
+        self.rainbowness = rainbowness #How many colors to display at once. Works if greater than 0, but the reasonable range is from 0 to 2. 80 is fun
+        self.blending = blending #How blended the colors are. Default is 0.5. Works reasonably from 0 to 1
+        self.lightshow = []
+        for i in range(half):
+            self.lightshow.append(0)
+        pixels.fill((0,0,0))
 
-def audioVis(hasData):
-    global half, buffer, scroll, scrollSpeed, chroma, rainbowness, whiteness
-    scrollJuice = 0.0
-    pixels.fill((0,0,0))
-    if hasData:
+    def update(self):
         value = bytes(input(), 'utf-8')
-        temp = value.strip(b' ')
-        lightshow = temp.split(b' ')
-        val = 0.0
-    for i in range(half):
-        if hasData:
+        temp1 = value.strip(b' ')
+        temp2 = temp1.split(b' ')
+        self.lightshow.clear()
+        for i in range(half):
             try:
-                val = min(100.0,float(lightshow[min(i,len(lightshow)-1)]))
+                val = temp2[min(i,len(temp2)-1)]
             except ValueError:
                 val = 0
-        else:
-            val = 0
-        scrollJuice += min(0.0002 * math.pow(val,2),2)
-        x = i - scroll
-        w = (3/4) * (20 / rainbowness)
-        r = (20 / rainbowness) * math.pi
-        b = blending
-        hue = (max(0,255*(math.cos(x/w)+b)/(1+b)),max(0,255*(math.cos((x-(r/2))/w)+b)/(1+b)),max(0,255*(math.cos((x-r)/w))+b)/(1+b))
-        r = min(max(hue[0]*val*chroma+(math.pow(val,1.5)*whiteness),hue[0]*0.1),maxVal)
-        g = min(max(hue[1]*val*chroma+(math.pow(val,1.5)*whiteness),hue[1]*0.1),maxVal)
-        b = min(max(hue[2]*val*chroma+(math.pow(val,1.5)*whiteness),hue[2]*0.1),maxVal)
-        pixels[(half+i)+buffer] = (r,g,b)
-        pixels[(half-(i+1))+buffer] = (r,g,b)
-        i += 1
-    scroll = scroll + ((0.1+scrollJuice) * scrollSpeed)
-    pixels.show()
+            self.lightshow.append(val)
 
-def fire():
-    global smoothing
-    for i in range(pixelCount):
-        if flamePixels[i][2] == 0: #Setup
-            flamePixels[i][0] = random.randint(20,30) #Hue
-            flamePixels[i][1] = random.randint(50,60) #Brightness
-            flamePixels[i][2] = random.randint(5,20) #Flicker speed
-            flamePixels[i][3] = 1 #Flicker direction
-        if 0 < i < pixelCount - 1: #Smoothing
-            flamePixels[i][1] -= (flamePixels[i][1]-flamePixels[i-1][1]) * smoothing
-            flamePixels[i][1] -= (flamePixels[i][1]-flamePixels[i+1][1]) * smoothing
-        if flamePixels[i][3] == 1: #Flicker up
-            flamePixels[i][1] += flamePixels[i][2] / 1
-            flamePixels[i][0] -= flamePixels[i][2] / 25
-            if flamePixels[i][1] >= 255:
-                flamePixels[i][1] = 255
-                flamePixels[i][3] = -1
-        if flamePixels[i][3] == -1: #Flicker down
-            flamePixels[i][1] -= flamePixels[i][2] / 2
-            flamePixels[i][0] += flamePixels[i][2] / 35
-            if flamePixels[i][1] <= 20:
-                flamePixels[i][1] = 20
-                flamePixels[i][3] = 1
-                flamePixels[i][2] = random.randint(5,20)
-                flamePixels[i][0] = random.randint(20,30)
-        hue = wheel(flamePixels[i][0]) #Display
-        br = flamePixels[i][1] / 255
-        pixels[i] = (hue[0]*br,hue[1]*br,0)
-    pixels.show()
+    def display(self):
+        global half, buffer
+        for i in range(half):
+            try:
+                val = min(100.0,float(self.lightshow[min(i,len(self.lightshow)-1)]))
+            except ValueError:
+                val = 0.0
+            self.scrollJuice += min(0.0002 * math.pow(val,2),2)
+            hue = colorCalc(self.colors, i - self.scroll, self.blending, 20 / self.rainbowness)
+            r = min(max(hue[0]*val*self.chroma+(math.pow(val,1.5)*self.whiteness),hue[0]*0.1),self.maxVal)
+            g = min(max(hue[1]*val*self.chroma+(math.pow(val,1.5)*self.whiteness),hue[1]*0.1),self.maxVal)
+            b = min(max(hue[2]*val*self.chroma+(math.pow(val,1.5)*self.whiteness),hue[2]*0.1),self.maxVal)
+            pixels[(half+i)+buffer] = (r,g,b)
+            pixels[(half-(i+1))+buffer] = (r,g,b)
+            i += 1
+        self.scroll = self.scroll + ((0.1+self.scrollJuice) * self.scrollSpeed)
+        self.scrollJuice = 0.0
+        pixels.show()
 
-print("Running...")
+class fire():
+    def __init__(self, color):
+        global pixelCount, buffer
+        self.color = color
+        self.smoothing = 0.01 #Flame smoothing
+        self.flamePixels = []
+        for i in range(pixelCount - buffer):
+            self.flamePixels.append([0,0,0,0]) #hue, brightness, Flicker speed, Flicker direction
+
+    def display(self):
+        global pixelCount, buffer
+        fp = self.flamePixels
+        for i in range(pixelCount - buffer):
+            if fp[i][2] == 0: #Setup
+                fp[i][0] = random.randint(self.color - 5,self.color + 5) #Hue
+                fp[i][1] = random.randint(50,60) #Brightness
+                fp[i][2] = random.randint(5,20) #Flicker speed
+                fp[i][3] = 1 #Flicker direction
+            if 0 < i < pixelCount - 1: #Smoothing
+                fp[i][1] -= (fp[i][1]-fp[max(i-1,0)][1]) * self.smoothing
+                fp[i][1] -= (fp[i][1]-fp[min(i+1,pixelCount-buffer-1)][1]) * self.smoothing
+            if fp[i][3] == 1: #Flicker up
+                fp[i][1] += fp[i][2] / 1
+                fp[i][0] -= fp[i][2] / 25
+                if fp[i][1] >= 255:
+                    fp[i][1] = 255
+                    fp[i][3] = -1
+            if fp[i][3] == -1: #Flicker down
+                fp[i][1] -= fp[i][2] / 2
+                fp[i][0] += fp[i][2] / 35
+                if fp[i][1] <= 20:
+                    fp[i][1] = 20
+                    fp[i][3] = 1
+                    fp[i][2] = random.randint(5,20)
+                    fp[i][0] = random.randint(self.color - 5,self.color + 5)
+            hue = wheel(fp[i][0],0.5) #Display
+            br = fp[i][1] / 255
+            pixels[i + buffer] = (hue[0]*br,hue[1]*br,0)
+        pixels.show()
+
+print("Running...") #Startup
+av1 = audioVisualizer([(255,0,0),(0,255,0),(0,0,255)],1, 0.7, 3)
+av2 = audioVisualizer([(10,230,10),(255,255,255),(255,10,0)],0.5, 0.1, 5)
+fr1 = fire(20)
+
 while True: #Running loop
     dcWait = dcWait + 1
     if btn.value == False:
@@ -142,14 +165,15 @@ while True: #Running loop
             pressed = True
             if dcWait < 20: #Double click to change mode
                 animationMode = animationMode + 1
-                if animationMode > 1:
+                if animationMode > 2:
                     animationMode = 0
                 print("Mode is now mode: " + str(animationMode))
-                brightness = brightness + brIncrement #counteracts the increase from the first click when double clicking
+                brightness += brIncrement
                 pixels.brightness = brightness
+                dcWait = 20
             else:
-                brightness = brightness - brIncrement
-                if brightness < -0.01: #floating point error solution
+                brightness -= brIncrement
+                if brightness < -0.01 or brightness > 1: #floating point error solution
                     brightness = 1
                 pixels.brightness = brightness
                 print("Brightness is now: " + str(brightness * 100) + "%")
@@ -160,17 +184,13 @@ while True: #Running loop
 
     if (animationMode == 0):
         if supervisor.runtime.serial_bytes_available:
-            downtime = 0
-            audioVis(1)
-        else:
-            downtime += 1
-            if downtime > 100:
-                audioVis(0)
+            av1.update()
+        av1.display()
+
+    if (animationMode == 2):
+        if supervisor.runtime.serial_bytes_available:
+            av2.update()
+        av2.display()
+
     if (animationMode == 1):
-        fire()
-
-
-
-
-
-
+        fr1.display()
