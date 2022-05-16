@@ -216,6 +216,18 @@ def main():
     #Default:         (2       2               2             5        0.2     )
 
     av = audioVisualizer(
+    [(120,0,0)], #colors
+    (-240,0,0), #accent
+    1, #accentWeight
+    1, #rainbowness
+    (0,2,2,3,0.2), #speed, responsiveness, nonlinearity, maximum, baseline
+    2, #blending
+    0.00, #chroma
+    255, #maxVal
+    0.1, #minimum
+    "Inverse red") #description
+
+    av = audioVisualizer(
     [GREEN,WHITE,RED], #colors
     WHITE, #accent
     1, #accentWeight
@@ -230,7 +242,7 @@ def main():
     av = audioVisualizer(
     [BLUE, TEAL], #colors
     YELLOW, #accent
-    5, #accentWeight
+    2, #accentWeight
     0.5, #rainbowness
     (1,2,2,3,0.2), #speed, responsiveness, nonlinearity, maximum, baseline
     1, #blending
@@ -242,14 +254,16 @@ def main():
     av = audioVisualizer(
     [RED,GREEN,BLUE], #colors
     WHITE, #accent
-    1, #accentWeight
-    1, #rainbowness
+    0.6, #accentWeight
+    0.5, #rainbowness
     (1.5,1,2,3,0.2), #speed, responsiveness, nonlinearity, maximum, baseline
-    0.5, #blending
+    0.4, #blending
     0.02, #chroma
     255, #maxVal
     0.1, #minimum
     "Rainbow") #description
+
+    #Fire color schemes
 
     fr = fire(
     (150,0,0), #Color
