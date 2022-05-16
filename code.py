@@ -46,11 +46,11 @@ def colorCalc(colors, x, blending, r): #r is for range
         weightedColors.append((colors[i][0],colors[i][1],colors[i][2],weight))
     return(colorWeightedAverage(weightedColors))
 
-def colorWeightedAverage(weightedColors): #[red,green,blue,weight]
+def colorWeightedAverage(weightedColors): #(red,green,blue,weight)
     wrs = 0.0 #weighted red sum
     wgs = 0.0 #weighted green sum
     wbs = 0.0 #weighted blue sum
-    sw = 0.0 #sum of weights
+    sw = 0.001 #sum of weights
     for wc in weightedColors:
         wrs += wc[0]*wc[3]
         wgs += wc[1]*wc[3]
@@ -71,18 +71,24 @@ def isPressed(): #Returns true once when the button is pressed. Somehow works de
 #Modes:
 
 class audioVisualizer():
-    def __init__(self, colors, rainbowness, blending, scrollSpeed, colorDesc):
+    def __init__(self, colors, accentColor, accentWeight, rainbowness, scrollSettings, blending, chroma, maxVal, minimum, colorDesc):
         global HALF, BUFFER, modes
         modes[0].insert(0,self)
-        self.colors = colors
-        self.scroll = 0.0 #Don't touch
-        self.scrollSpeed = scrollSpeed #Scroll speed. Default is 1. Advisable to change inversely to rainbowness
+        self.scroll = 0.0
         self.scrollJuice = 0.0
-        self.chroma = 0.02 #Factor of the raw color value. Default is 0.01
-        self.whiteness = 0.1 #Factor of the value added to each color. Default is 0.15
-        self.maxVal = 255 #Max R/G/B value. Setting this above 255 allows for inverted colors by wrapping around
-        self.rainbowness = rainbowness #How many colors to display at once. Works if greater than 0, but the reasonable range is from 0 to 2. 80 is fun
-        self.blending = blending #How blended the colors are. Default is 0.5. Works reasonably from 0 to 1
+        self.scrollSpeed = scrollSettings[0]
+        self.scrollResponsiveness = scrollSettings[1]
+        self.scrollNonlinearity = scrollSettings[2]
+        self.scrollMaximum = scrollSettings[3]
+        self.scrollBaseline = scrollSettings[4]
+        self.maxVal = maxVal
+        self.colors = colors
+        self.accentColor = accentColor
+        self.accentWeight = accentWeight
+        self.minimum = minimum
+        self.rainbowness = rainbowness
+        self.blending = blending
+        self.chroma = chroma
         self.desc = "Music visualizer and/or scrolling lightshow"
         self.colorDesc = colorDesc
         self.lightshow = []
@@ -110,26 +116,28 @@ class audioVisualizer():
     def display(self):
         for i in range(HALF):
             try:
-                val = min(100.0,float(self.lightshow[min(i,len(self.lightshow)-1)]))
+                value = min(100.0,float(self.lightshow[min(i,len(self.lightshow)-1)])) #0 - 100
             except ValueError:
-                val = 0.0
-            self.scrollJuice += min(0.0002 * math.pow(val,2),2)
+                value = 0.0
+            self.scrollJuice += 0.0001 * self.scrollResponsiveness * math.pow(value,self.scrollNonlinearity)
             hue = colorCalc(self.colors, i - self.scroll, self.blending, 20 / self.rainbowness)
-            r = min(max(hue[0]*val*self.chroma+(math.pow(val,1.5)*self.whiteness),hue[0]*0.1),self.maxVal)
-            g = min(max(hue[1]*val*self.chroma+(math.pow(val,1.5)*self.whiteness),hue[1]*0.1),self.maxVal)
-            b = min(max(hue[2]*val*self.chroma+(math.pow(val,1.5)*self.whiteness),hue[2]*0.1),self.maxVal)
+            hue2 = colorWeightedAverage([(hue[0],hue[1],hue[2],100),(self.accentColor[0],self.accentColor[1],self.accentColor[2],value * self.accentWeight)])
+            r = min(max(hue2[0]*value*self.chroma,hue2[0]*self.minimum),self.maxVal)
+            g = min(max(hue2[1]*value*self.chroma,hue2[1]*self.minimum),self.maxVal)
+            b = min(max(hue2[2]*value*self.chroma,hue2[2]*self.minimum),self.maxVal)
             pixels[(HALF+i)+BUFFER] = (r,g,b)
             pixels[(HALF-(i+1))+BUFFER] = (r,g,b)
             i += 1
-        self.scroll = self.scroll + ((0.1+self.scrollJuice) * self.scrollSpeed)
+        self.scroll += ((self.scrollBaseline+min(self.scrollJuice,self.scrollMaximum)) * self.scrollSpeed)
         self.scrollJuice = 0.0
         pixels.show()
 
 class fire():
-    def __init__(self, color, colorDesc):
+    def __init__(self, color, accentColor, colorDesc):
         global N_PIXELS, BUFFER, modes
         modes[1].insert(0,self)
         self.color = color
+        self.accentColor = accentColor
         self.smoothing = 0.01 #Flame smoothing
         self.colorDesc = colorDesc
         self.desc = "Fire animation"
@@ -172,11 +180,87 @@ class fire():
 
 def main():
     global btn, modes
+    WHITE = (255,255,255)
+    BLACK = (0,0,0)
+    RED = (255,0,0)
+    ORANGE = (255, 150, 0)
+    YELLOW = (255,250,0)
+    LIME = (200,255,0)
+    GREEN = (0,255,0)
+    TEAL = (0,250,200)
+    BLUE = (0,0,255)
+    PURPLE = (150,0,255)
 
-    #Order is reversed from the order they are established in
-    av1 = audioVisualizer([(255,0,0),(0,255,0),(0,0,255)],1, 0.7, 2, "Rainbow") #colors, rainbowness, blending, scrollSpeed, color description
-    av2 = audioVisualizer([(10,230,10),(255,255,255),(255,10,0)],0.5, 0.1, 5, "Mexico")
-    fr1 = fire(20, "Orange Red") #Hue, color description
+    #Color schemes:
+    #Order of color schemes is reversed from the order they are established in
+
+    #Audio Visualizer Parameters:
+    #Colors is an ordered list of the colors in the format: [(r,g,b),(r,g,b)...] Color constants also work.
+    #Accent color is the color the frequency volumes display as.
+    #Rainbowness is how densly packed the colors are.
+    #Scroll settings is a tuple of the following settings:
+        #Scroll speed is applied multiplicatively after everything else. It's advisable to change it inversely to rainbowness.
+        #Audio responsiveness is how much scroll responds to audio.
+        #Audio nonlinearity is the power the audio effect is raised to.
+        #Maximum is the limit of how much the audio can increase the scroll speed
+        #Scroll baseline is how fast it scrolls at minimum.
+    #Blending is how much the colors overlap. Higher values yield more in-between colors and high values cause pastel colors.
+        #Blending should typically be lower with higher numbers of colors.
+    #Chroma is the factor that the frequency volume increases the colored brightness. Setting to negative causes wacky wrapping around.
+    #MaxVal is the maximum output r/g/b value. Increasing above 255 allows for inverted colors by wrapping around.
+    #Minimum sets the dimmest that the colors can display.
+    #ColorDesc is a description of the color scheme.
+
+    #Parameters: (colors,           accentColor, accentWeight, rainbowness, scrollSettings, blending, chroma,      maxVal,    minimum,   colorDesc )
+    #Defaults:   ([RED,GREEN,BLUE], WHITE,       1             1,                           0.5,      0.02,        255,       0.05       "Default" )
+    #Ranges:     (0-255             0-255        0-2           Not 0           (below)      >=-0.8    Any real     >0         >0         Any string)
+    #Reasonable: (0-255             0-255        0.5 - 1.5     0.01 - 2                     -0.8 - 1  0.01 - 0.05  255 - 300  0.01 - 0.1 Any string)
+
+    #Scroll settings: (speed,  responsiveness, nonlinearity, maximum, baseline)
+    #Default:         (2       2               2             5        0.2     )
+
+    av3 = audioVisualizer(
+    [GREEN,WHITE,RED], #colors
+    WHITE, #accent
+    1, #accentWeight
+    0.5, #rainbowness
+    (1,1,2,5,0.2), #speed, responsiveness, nonlinearity, maximum, baseline
+    0.1, #blending
+    0.02, #chroma
+    255, #maxVal
+    0.05, #minimum
+    "Mexico") #description
+
+    av2 = audioVisualizer(
+    [BLUE, TEAL], #colors
+    YELLOW, #accent
+    5, #accentWeight
+    0.5, #rainbowness
+    (1,2,2,3,0.2), #speed, responsiveness, nonlinearity, maximum, baseline
+    1, #blending
+    0.01, #chroma
+    255, #maxVal
+    0.05, #minimum
+    "Sea") #description
+
+    av1 = audioVisualizer(
+    [RED,GREEN,BLUE], #colors
+    WHITE, #accent
+    1.2, #accentWeight
+    1, #rainbowness
+    (1.5,1,2,3,0.2), #speed, responsiveness, nonlinearity, maximum, baseline
+    0.5, #blending
+    0.02, #chroma
+    255, #maxVal
+    0.1, #minimum
+    "Rainbow") #description
+
+    fr1 = fire(
+    20, #Color
+    RED, #Secondary color
+    "Orange Red") #Description
+
+    ########################################
 
     btn.direction = Direction.INPUT
     btn.pull = Pull.UP
