@@ -14,6 +14,7 @@ import array
 
 #Setup
 
+pressed = False #Button value
 smallLamp = False #Change this to True for easy small lamp setup
 modes = [[None for i in range(2)] for i in range(2)] #Buffer of 2 needed for some reason
 
@@ -33,10 +34,6 @@ else:
     btn = DigitalInOut(board.GP9)
 
 #Utilities
-
-def wheel(x, blending): #(Turns 0-255 into color from r-g-b. b is for blending, from -0.8 to 1)
-    hue = colorCalc([(255,0,0),(0,255,0),(0,0,255)], x, blending, 255)
-    return (hue)
 
 def colorCalc(colors, x, blending, r): #r is for range
     d = len(colors)
@@ -121,7 +118,8 @@ class audioVisualizer():
                 value = 0.0
             self.scrollJuice += 0.0001 * self.scrollResponsiveness * math.pow(value,self.scrollNonlinearity)
             hue = colorCalc(self.colors, i - self.scroll, self.blending, 20 / self.rainbowness)
-            hue2 = colorWeightedAverage([(hue[0],hue[1],hue[2],100),(self.accentColor[0],self.accentColor[1],self.accentColor[2],value * self.accentWeight)])
+            hue2 = colorWeightedAverage([(hue[0],hue[1],hue[2],50),
+            (self.accentColor[0],self.accentColor[1],self.accentColor[2],value * self.accentWeight)])
             r = min(max(hue2[0]*value*self.chroma,hue2[0]*self.minimum),self.maxVal)
             g = min(max(hue2[1]*value*self.chroma,hue2[1]*self.minimum),self.maxVal)
             b = min(max(hue2[2]*value*self.chroma,hue2[2]*self.minimum),self.maxVal)
@@ -133,17 +131,18 @@ class audioVisualizer():
         pixels.show()
 
 class fire():
-    def __init__(self, color, accentColor, colorDesc):
+    def __init__(self, color, accentColor, accent2, colorDesc):
         global N_PIXELS, BUFFER, modes
         modes[1].insert(0,self)
         self.color = color
         self.accentColor = accentColor
-        self.smoothing = 0.01 #Flame smoothing
+        self.accent2 = accent2
+        self.smoothing = 0.008 #Flame smoothing
         self.colorDesc = colorDesc
         self.desc = "Fire animation"
         self.flamePixels = []
         for i in range(N_PIXELS - BUFFER):
-            self.flamePixels.append([0,0,0,0]) #hue, brightness, Flicker speed, Flicker direction
+            self.flamePixels.append([0,0,0,0]) #Progress (0-100), Flicker speed, Flicker direction
 
     def run(self):
         self.display()
@@ -152,34 +151,31 @@ class fire():
         fp = self.flamePixels
         for i in range(N_PIXELS - BUFFER):
             if fp[i][2] == 0: #Setup
-                fp[i][0] = random.randint(self.color - 5,self.color + 5) #Hue
-                fp[i][1] = random.randint(50,60) #Brightness
-                fp[i][2] = random.randint(5,20) #Flicker speed
-                fp[i][3] = 1 #Flicker direction
+                fp[i][0] = 0 #Progress
+                fp[i][1] = random.randint(5,15) #Flicker speed
+                fp[i][2] = 1 #Flicker direction
             if 0 < i < N_PIXELS - 1: #Smoothing
-                fp[i][1] -= (fp[i][1]-fp[max(i-1,0)][1]) * self.smoothing
-                fp[i][1] -= (fp[i][1]-fp[min(i+1,N_PIXELS-BUFFER-1)][1]) * self.smoothing
-            if fp[i][3] == 1: #Flicker up
-                fp[i][1] += fp[i][2] / 1
-                fp[i][0] -= fp[i][2] / 25
-                if fp[i][1] >= 255:
-                    fp[i][1] = 255
-                    fp[i][3] = -1
-            if fp[i][3] == -1: #Flicker down
-                fp[i][1] -= fp[i][2] / 2
-                fp[i][0] += fp[i][2] / 35
-                if fp[i][1] <= 20:
-                    fp[i][1] = 20
-                    fp[i][3] = 1
-                    fp[i][2] = random.randint(5,20)
-                    fp[i][0] = random.randint(self.color - 5,self.color + 5)
-            hue = wheel(fp[i][0],0.5) #Display
-            br = fp[i][1] / 255
-            pixels[i + BUFFER] = (hue[0]*br,hue[1]*br,0)
+                fp[i][0] -= (fp[i][0]-fp[max(i-1,0)][0]) * self.smoothing
+                fp[i][0] -= (fp[i][0]-fp[min(i+1,N_PIXELS-BUFFER-1)][0]) * self.smoothing
+            if fp[i][2] == 1: #Flicker up
+                fp[i][0] += fp[i][1]
+                if fp[i][0] >= 100:
+                    fp[i][0] = 100
+                    fp[i][2] = -1
+            if fp[i][2] == -1: #Flicker down
+                fp[i][0] -= fp[i][1] /2
+                if fp[i][0] <= 0:
+                    fp[i][0] = 0
+                    fp[i][1] = random.randint(5,15)
+                    fp[i][2] = 1
+            hue = colorWeightedAverage([(self.color[0],self.color[1],self.color[2],100-fp[i][0]),
+            (self.accent2[0],self.accent2[1],self.accent2[2],max(0,(fp[i][0] - 80)*2)),
+            (self.accentColor[0],self.accentColor[1],self.accentColor[2],fp[i][0])])
+            pixels[i + BUFFER] = (math.floor(hue[0]),math.floor(hue[1]),math.floor(hue[2]))
         pixels.show()
 
 def main():
-    global btn, modes
+    global btn, modes, pressed
     WHITE = (255,255,255)
     BLACK = (0,0,0)
     RED = (255,0,0)
@@ -219,7 +215,7 @@ def main():
     #Scroll settings: (speed,  responsiveness, nonlinearity, maximum, baseline)
     #Default:         (2       2               2             5        0.2     )
 
-    av3 = audioVisualizer(
+    av = audioVisualizer(
     [GREEN,WHITE,RED], #colors
     WHITE, #accent
     1, #accentWeight
@@ -231,7 +227,7 @@ def main():
     0.05, #minimum
     "Mexico") #description
 
-    av2 = audioVisualizer(
+    av = audioVisualizer(
     [BLUE, TEAL], #colors
     YELLOW, #accent
     5, #accentWeight
@@ -243,10 +239,10 @@ def main():
     0.05, #minimum
     "Sea") #description
 
-    av1 = audioVisualizer(
+    av = audioVisualizer(
     [RED,GREEN,BLUE], #colors
     WHITE, #accent
-    1.2, #accentWeight
+    1, #accentWeight
     1, #rainbowness
     (1.5,1,2,3,0.2), #speed, responsiveness, nonlinearity, maximum, baseline
     0.5, #blending
@@ -255,16 +251,40 @@ def main():
     0.1, #minimum
     "Rainbow") #description
 
-    fr1 = fire(
-    20, #Color
-    RED, #Secondary color
+    fr = fire(
+    (150,0,0), #Color
+    GREEN, #Secondary color
+    WHITE, #Tip color
+    "Cursed Mexico Fire") #Description
+
+    fr = fire(
+    (0,0,0), #Color
+    (255,255,255), #Secondary color
+    (255,255,255), #Tip color
+    "Purity") #Description
+
+    fr = fire(
+    (0,5,30), #Color
+    (0,80,50), #Secondary color
+    (5,120,60), #Tip color
+    "Blue fire") #Description
+
+    fr = fire(
+    (0,0,4), #Color
+    (150,70,0), #Secondary color
+    (350,20,0), #Tip color
+    "Gas stove fire") #Description
+
+    fr = fire(
+    (30,15,0), #Color
+    (60,10,0), #Secondary color
+    (120,30,0), #Tip color
     "Orange Red") #Description
 
     ########################################
 
     btn.direction = Direction.INPUT
     btn.pull = Pull.UP
-    pressed = False #Button value
     longPressTest = False
     longPressTimer = 0
     dcTest = False #Prevents single clicking while double clicking
