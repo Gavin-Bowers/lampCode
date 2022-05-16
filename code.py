@@ -58,8 +58,8 @@ def colorWeightedAverage(weightedColors): #[red,green,blue,weight]
         sw += wc[3]
     return((wrs/sw,wgs/sw,wbs/sw))
 
-def isPressed(): #Returns true once when the button is pressed
-    global pressed
+def isPressed(): #Returns true once when the button is pressed. Somehow works despite pressed not being global?
+    global pressed, btn
     if btn.value == False:
         if pressed == False:
             pressed = True
@@ -170,16 +170,14 @@ class fire():
             pixels[i + BUFFER] = (hue[0]*br,hue[1]*br,0)
         pixels.show()
 
-#Main
+def main():
+    global btn, modes
 
-def setup():
     #Order is reversed from the order they are established in
     av1 = audioVisualizer([(255,0,0),(0,255,0),(0,0,255)],1, 0.7, 2, "Rainbow") #colors, rainbowness, blending, scrollSpeed, color description
     av2 = audioVisualizer([(10,230,10),(255,255,255),(255,10,0)],0.5, 0.1, 5, "Mexico")
     fr1 = fire(20, "Orange Red") #Hue, color description
 
-def main():
-    global btn, modes
     btn.direction = Direction.INPUT
     btn.pull = Pull.UP
     pressed = False #Button value
@@ -246,5 +244,4 @@ def main():
 
         modes[animationMode][colorMode].run()
 
-setup()
 main()
