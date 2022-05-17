@@ -8,7 +8,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=int, default=6, dest='device',
                         help='pyaudio (portaudio) device index')
-    parser.add_argument('--n_frequency_bins', type=int, default=35, dest='frequency_bins',
+    parser.add_argument('--n_frequency_bins', type=int, default=25, dest='frequency_bins',
                         help='The FFT features are grouped in bins')
     parser.add_argument('--port', type=int, default=4, dest='port',
                         help='The serial port the lamp is connected to'),
@@ -46,7 +46,7 @@ def run_FFT_analyzer():
                     window_ratio = '24/9'  # Float ratio of the visualizer window. e.g 24/9
                     )
 
-    fps = 400  #How often to update the FFT features + display
+    fps = 200  #How often to update the FFT features + display
     last_update = time.time()
     while True:
         if (time.time() - last_update) > (1./fps):

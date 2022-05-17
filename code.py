@@ -14,9 +14,7 @@ import array
 
 #Setup
 
-pressed = False #Button value
 smallLamp = False #Change this to True for easy small lamp setup
-modes = [[None for i in range(2)] for i in range(2)] #Buffer of 2 needed for some reason
 
 if smallLamp:
     N_PIXELS = 34 #Number of LEDs
@@ -24,6 +22,8 @@ if smallLamp:
     HALF = math.floor((N_PIXELS-BUFFER)/2.0) #If the (N_PIXELS - BUFFER) is odd, stuff might break
     pixels = neopixel.NeoPixel(board.GP0, N_PIXELS, brightness=1, auto_write=False)
     btn = DigitalInOut(board.GP2)
+    pressed = False #Button value
+    modes = [[None for i in range(2)] for i in range(2)] #Buffer of 2 needed for some reason
 
 else:
     N_PIXELS = 51 #Number of LEDs
@@ -32,6 +32,8 @@ else:
     pixels = neopixel.NeoPixel(board.GP5, N_PIXELS, brightness=1, auto_write=False) #GP0 for smaller lamps
     mic = audiobusio.PDMIn(clock_pin=board.GP3, data_pin=board.GP2,mono=True, sample_rate=16000, bit_depth=16) #My device bugs out without this
     btn = DigitalInOut(board.GP9)
+    pressed = False #Button value
+    modes = [[None for i in range(2)] for i in range(2)] #Buffer of 2 needed for some reason
 
 #Utilities
 
@@ -72,7 +74,6 @@ class audioVisualizer():
         global HALF, BUFFER, modes
         modes[0].insert(0,self)
         self.scroll = 0.0
-        self.scrollJuice = 0.0
         self.scrollSpeed = scrollSettings[0]
         self.scrollResponsiveness = scrollSettings[1]
         self.scrollNonlinearity = scrollSettings[2]
@@ -99,24 +100,13 @@ class audioVisualizer():
         self.display()
 
     def update(self):
-        value = bytes(input(), 'utf-8')
-        temp1 = value.strip(b' ')
-        temp2 = temp1.split(b' ')
-        self.lightshow.clear()
-        for i in range(HALF):
-            try:
-                val = temp2[min(i,len(temp2)-1)]
-            except ValueError:
-                val = 0
-            self.lightshow.append(val)
+        self.lightshow = bytes(input(), 'utf-8').strip(b' ').split(b' ')
 
     def display(self):
+        scrollIncrease = 0.0
         for i in range(HALF):
-            try:
-                value = min(100.0,float(self.lightshow[min(i,len(self.lightshow)-1)])) #0 - 100
-            except ValueError:
-                value = 0.0
-            self.scrollJuice += 0.0001 * self.scrollResponsiveness * math.pow(value,self.scrollNonlinearity)
+            value = float(self.lightshow[min(i,len(self.lightshow)-1)]) #0 - 100 ish
+            scrollIncrease += 0.0001 * self.scrollResponsiveness * math.pow(value,self.scrollNonlinearity)
             hue = colorCalc(self.colors, i - self.scroll, self.blending, 20 / self.rainbowness)
             hue2 = colorWeightedAverage([(hue[0],hue[1],hue[2],50),
             (self.accentColor[0],self.accentColor[1],self.accentColor[2],value * self.accentWeight)])
@@ -125,9 +115,7 @@ class audioVisualizer():
             b = min(max(hue2[2]*value*self.chroma,hue2[2]*self.minimum),self.maxVal)
             pixels[(HALF+i)+BUFFER] = (r,g,b)
             pixels[(HALF-(i+1))+BUFFER] = (r,g,b)
-            i += 1
-        self.scroll += ((self.scrollBaseline+min(self.scrollJuice,self.scrollMaximum)) * self.scrollSpeed)
-        self.scrollJuice = 0.0
+        self.scroll += ((self.scrollBaseline+min(scrollIncrease,self.scrollMaximum)) * self.scrollSpeed)
         pixels.show()
 
 class fire():
@@ -177,6 +165,7 @@ class fire():
 def main():
     global btn, modes, pressed
     WHITE = (255,255,255)
+    GREY = (100,100,100)
     BLACK = (0,0,0)
     RED = (255,0,0)
     ORANGE = (255, 150, 0)
@@ -186,12 +175,14 @@ def main():
     TEAL = (0,250,200)
     BLUE = (0,0,255)
     PURPLE = (150,0,255)
+    VIOLET = (80,0,255)
 
     #Color schemes:
     #Order of color schemes is reversed from the order they are established in
 
     #Audio Visualizer Parameters:
     #Colors is an ordered list of the colors in the format: [(r,g,b),(r,g,b)...] Color constants also work.
+        #The processing load scales linearly with the number of colors, so keep it reasonable. The pico only has so much compute power. It also scales with LED count, so it's more of an issue for me.
     #Accent color is the color the frequency volumes display as.
     #Rainbowness is how densly packed the colors are.
     #Scroll settings is a tuple of the following settings:
@@ -255,9 +246,9 @@ def main():
     [RED,GREEN,BLUE], #colors
     WHITE, #accent
     0.6, #accentWeight
-    0.5, #rainbowness
+    0.4, #rainbowness
     (1.5,1,2,3,0.2), #speed, responsiveness, nonlinearity, maximum, baseline
-    0.4, #blending
+    0.6, #blending
     0.02, #chroma
     255, #maxVal
     0.1, #minimum
