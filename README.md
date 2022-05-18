@@ -1,61 +1,42 @@
 
 Audio visualizer from aiXander (https://github.com/aiXander/Realtime_PyAudio_FFT)
+Original lamp code from Nick Ruffalo (https://github.com/nruffilo/BitsnBots/blob/master/CrystalLamp/code.py)
+This project by Gavin Bowers
 
-Lamp code from Nick Ruffalo (https://github.com/nruffilo/BitsnBots/blob/master/CrystalLamp/code.py)
+For Windows 10
 
-Lightshow by Gavin Bowers
+Download Voicemeeter. You need it to mirror audio for the program, although any program that can mirror output to a a virtual input will work.
+Open Voicemeeter and click the A1 "Hardware out" box in the top right. Select your preferred audio output.
+Set Voicemeeter as your computer's audio output. You should see it animate when playing audio. Yes, this means you can't easily change your volume. The windows sound device list can do it, as well as voicemeeter's UI. Using voicemeeter can interact weirdly with apps like Zoom, so you may want to turn it off when not using it. Voicemeeter can be set to run in the background when closed.
 
-This program was tested on Windows 10 but should work elsewhere
-
-Step 1. 
-	Install Python 3.10. Look up how if you need to. The tutorial should tell you to edit the environment variables so you can access it anywhere. Make sure to do so
-
-Step 2. 
-	Install pip. Download the installer by opening a terminal and running
+The following step is used to find your audio device ids because I don't know a better way. Python is no longer a dependancy of the application.
+Install Python 3 with the installer. Then use the following command line commands to install pip and sounddevice, then find your audio devices.
 		
-		curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-
-Then open a terminal in downloads and run
-	
-		python get-pip.py
-
-Step 3. 
-	Use pip to install numpy, matplotlib, scipy, pygame, pySerial, and sounddevice. Check requirements.txt for versions (although I don't think anything is version sensitive)
-
-Step 4.
-	Download Voicemeeter. It's free and you need it to use an audio output as an input to the program 
-	(Using voicemeeter can interact weirdly with apps like Zoom, so you may want to turn it off when not using it)
-	(Any audio mirroring program that can create a virtual input from output will work)
-
-Step 5. 
-	Open Voicemeeter and click the A1 "Hardware out" box in the top right. Select your preferred audio output 
-	Set Voicemeeter as your computer's audio output. You should see it animate when playing audio. You can close Voicemeeter, it will run in the background
-
-Step 6.
-	Find the virtual input by running the following in python (you can open python by typing "python" into the terminal)
-		
-		import sounddevice as sd
-		print(sd.query_devices())
+	curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+	python get-pip.py
+	pip install sounddevice
+	python
+	import sounddevice as sd
+	print(sd.query_devices())
 
 This will list your audio devices. Find the number for "VoiceMeeter Input (VB-Audio Voi, MME (0 in, 2 out)"
 
-Step 7. 
-	Edit runLightshow.bat. If you can't edit it, rename it to runLightshow.txt to edit it, then revert it afterward.
-	Change the --device value to the number of your virtual audio device.
-	Change the --port value to whichever serial port your lamp connects to.
-	If you don't know which, open Mu (install it if you need to, select circuitpython as the language) and hover the mouse over the chip icon in the bottom right while the lamp is plugged in
-	Change the --n_frequency_bins number. This needs to be at least half the number of leds on your lamp, but it should probably be set higher to cut off some of the rarely used high frequencies (I use 35 when 25 is half my number of LEDs)
-	Optionally, you can change the --window_size and --smoothing_length values. Increasing these will make the lightshow smoother but less responsive. They don't have to be the same.
+Edit the link file by right clicking, selecting properties, and changing the arguments in the "target" field.
+Change the --device value to the number of the virtual audio device you found in the last step.
+Change the --port value to whichever serial port your lamp connects to.
+If you don't know which, open Mu (install it if you need to, select circuitpython as the language) and hover the mouse over the chip icon in the bottom right while the lamp is plugged in
+Change the --n_frequency_bins number to half the number of leds on your lamp
+Optionally, you can change the --window_size and --smoothing_length values. Increasing these will make the lightshow smoother but less responsive. They don't have to be the same.
 	
+Edit code.py and change smallLamp to True if you have a 34 LED lamp. If your lamp has different ports and/or number of LEDs from either preset, alter the smallLamp preset to have the correct ports and N_PIXELS. If you have LEDs sticking out from under your crystal, you may want to increase BUFFER. If your device bugs out without the audio setup, you may need to copy it over from my preset.
 
-Step 8.
-	Edit code.py and change pixelCount to your number of LEDs (34 for smaller lamps). Probably set buffer to 0. Also change the pins (marked with <--) to the 	  correct ones for your device.
-Step 9. 
-	If you haven't already, connect your lamp with a data USB to micro USB male-male cable. Open the lamp's folder and copy code.py from this folder onto the lamp.
-	If the device's folder doesn't have neopixel.mpy, add it from this folder.
+If you haven't already, connect your lamp with a data USB to micro USB male to male cable. Open the lamp's folder and copy code.py from this folder onto the lamp.
+If the device's folder doesn't have neopixel.mpy, add it from this repository or from the adafruit website.
 
-Step 10.
-	Close Mu if it's open as it can interfere with serial communication
+You can move the link wherever you want, and use it to run the program. Make sure Mu's serial isn't opened or it will crash. It will also crash if the port argument is wrong or if the lamp isn't plugged in.
 
-Step 12. 
-	Run runLightshow.bat by double clicking it
+Lamp controls:
+
+Single click: decrease brightness by 20%, loops back to 100% after off
+Long click: changes color scheme, loops.
+Double click: changes lightshow mode, currently only audio visualizer and fire. Loops. Resets color scheme.
