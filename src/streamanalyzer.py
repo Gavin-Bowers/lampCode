@@ -1,5 +1,4 @@
-import numpy as np
-import time, math, scipy
+import time
 from collections import deque
 from scipy.signal import savgol_filter
 import serial
@@ -7,7 +6,7 @@ import serial
 from src.fft import getFFT
 from src.utils import *
 
-class Stream_Analyzer:
+class StreamAnalyzer:
     """
     The Audio_Analyzer class provides access to continuously recorded
     (and mathematically processed) audio data.
@@ -25,42 +24,27 @@ class Stream_Analyzer:
         device = None,
         rate   = None,
         FFT_window_size_ms  = 50,
-        updates_per_second  = 200,
+        updates_per_second  = 100,
         smoothing_length_ms = 50,
         n_frequency_bins    = 50,
-        visualize = True,
         verbose   = False,
-        height    = 450,
-        window_ratio = 24/9,
         serial_port = None):
 
-        self.leds = n_frequency_bins
-        self.n_frequency_bins = n_frequency_bins * 10
+        self.n_frequency_bins = n_frequency_bins
         self.rate = rate
         self.verbose = verbose
-        self.visualize = visualize
-        self.height = height
-        self.window_ratio = window_ratio
         self.ser = serial.Serial(
-            port='COM' + str(serial_port),
+            port=f'COM{serial_port}',
             timeout=0.1,
             writeTimeout=0.1
         )
 
-        try:
-            from src.stream_reader_pyaudio import Stream_Reader
-            self.stream_reader = Stream_Reader(
-                device  = device,
-                rate    = rate,
-                updates_per_second  = updates_per_second,
-                verbose = verbose)
-        except:
-            from src.stream_reader_sounddevice import StreamReader
-            self.stream_reader = StreamReader(
-                device  = device,
-                rate    = rate,
-                updates_per_second  = updates_per_second,
-                verbose = verbose)
+        from src.stream_reader_sounddevice import StreamReader
+        self.stream_reader = StreamReader(
+            device  = device,
+            rate    = rate,
+            updates_per_second  = updates_per_second,
+            verbose = verbose)
 
         self.rate = self.stream_reader.rate
 
@@ -70,9 +54,7 @@ class Stream_Analyzer:
         self.apply_frequency_smoothing = True   # Apply a postprocessing smoothing filter over the FFT outputs
 
         if self.apply_frequency_smoothing:
-            self.filter_width = round_up_to_even(0.03*self.n_frequency_bins) - 1 
-        if self.visualize:
-            from src.visualizer import Spectrum_Visualizer
+            self.filter_width = round_up_to_even(0.03*self.n_frequency_bins) - 1
 
         self.FFT_window_size = round_up_to_even(self.rate * FFT_window_size_ms / 1000)
         self.FFT_window_size_ms = 1000 * self.FFT_window_size / self.rate
@@ -123,10 +105,6 @@ class Stream_Analyzer:
         #Let's get started:
         self.stream_reader.stream_start(self.data_windows_to_buffer)
 
-        if self.visualize:
-            self.visualizer = Spectrum_Visualizer(self)
-            self.visualizer.start()
-
     def update_rolling_stats(self):
         self.rolling_bin_values.append_data(self.frequency_bin_energies)
         self.bin_mean_values  = np.mean(self.rolling_bin_values.get_buffer_data(), axis=0)
@@ -149,24 +127,21 @@ class Stream_Analyzer:
                 buffered_features = self.smoothing_kernel * buffered_features
                 self.fft = np.mean(buffered_features, axis=0)
 
-        self.strongest_frequency = self.fftx[np.argmax(self.fft)] #Gets 100 bin values
+        self.strongest_frequency = self.fftx[np.argmax(self.fft)]
+        
+        lightshow = b''
+        i = 0
+        
+        #ToDo: replace this for-loop with pure numpy code
         for bin_index in range(self.n_frequency_bins):
             self.frequency_bin_energies[bin_index] = np.mean(self.fft[self.fftx_indices_per_bin[bin_index]])
 
-        lightshow = b''
-        index = 1 #Position in (250) frequency samples. Omitts the deepest base
-        sample = 0.01 #Default is 0.5. Decrease to increase base detail and vise versa
-        
-        for i in range(self.leds): #LED Position
-            sample += 0.25 #Increase to increase the high end, lower to increase base detail.
-            total = 0
-            for j in range(math.ceil(sample)):
-                total += self.frequency_bin_energies[min(self.n_frequency_bins-1,index)]
-                index += 1
-            lightshow += str(math.ceil(total/math.ceil(sample))).encode() + b' '
             
+            if (i < 50):
+                lightshow += str(math.ceil(min(self.frequency_bin_energies[bin_index] * 1.6, 100.0))).encode() + b' '
+                i += 1
         lightshow += b'\n\r'
-        print(lightshow)
+        #print(lightshow)
         try:
             self.ser.flush()
             self.ser.write(lightshow)
@@ -206,8 +181,5 @@ class Stream_Analyzer:
                 print("\nAvg fft  delay: %.2fms  -- avg data delay: %.2fms" %(avg_fft_delay, avg_data_capture_delay))
                 print("Num data captures: %d (%.2ffps)-- num fft computations: %d (%.2ffps)"
                     %(self.stream_reader.num_data_captures, data_fps, self.num_ffts, self.fft_fps))
-
-            if self.visualize and self.visualizer._is_running:
-                self.visualizer.update()
 
         return self.fftx, self.fft, self.frequency_bin_centres, self.frequency_bin_energies
