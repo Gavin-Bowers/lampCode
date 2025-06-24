@@ -1,1 +1,0 @@
-python ls.py --device 10 --port 4 --n_frequency_bins 35 --window_size 20 --smoothing_length 20

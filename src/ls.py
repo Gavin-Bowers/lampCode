@@ -1,11 +1,6 @@
 # Standard library
 import sys
 
-import serial
-
-# Other imports
-import argparse
-
 # Local Imports
 from src.streamanalyzer import StreamAnalyzer
 
