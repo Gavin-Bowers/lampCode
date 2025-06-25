@@ -29,9 +29,6 @@ class MainWindow(QMainWindow):
             print("No lamp found")
 
         self.connection = SerialConnection(self.port)
-        if not self.connection.is_connected():
-            print(self.connection.get_status())
-
         self.init_ear()
 
         self.setWindowTitle('Lamp Controller')
@@ -120,7 +117,7 @@ class MainWindow(QMainWindow):
     def update_waveform(self):
         self.stream_analyzer.get_audio_features()
         lightshow = self.stream_analyzer.get_lightshow_data()
-        self.connection_status.setText(self.connection.get_status())
+        self.connection_status.setText(self.connection.status)
         self.connection.write_data(lightshow)
         # print(self.connection.get_received_data())
 
