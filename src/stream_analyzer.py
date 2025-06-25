@@ -1,5 +1,3 @@
-import numpy as np
-import time, math, scipy
 from collections import deque
 from scipy.signal import savgol_filter
 
@@ -14,7 +12,6 @@ class StreamAnalyzer:
 
     Arguments:
         fft_window_size_ms: int:  Time window size (in ms) to use for the FFT transform
-        updatesPerSecond: int:    How often to record new data.
 
     """
 
@@ -132,7 +129,7 @@ class StreamAnalyzer:
         for bin_index in range(self.n_frequency_bins):
             self.frequency_bin_energies[bin_index] = np.mean(self.fft[self.fftx_indices_per_bin[bin_index]])
             if i < 50:
-                lightshow += str(math.ceil(min(self.frequency_bin_energies[bin_index] * 1.6, 100.0))).encode() + b' '
+                lightshow += str(math.ceil(np.minimum(self.frequency_bin_energies[bin_index] * 1.6, 100.0))).encode() + b' '
                 i += 1
 
         lightshow += b'\n\r'

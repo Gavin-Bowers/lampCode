@@ -3,4 +3,5 @@ matplotlib
 scipy
 pyaudiowpatch
 pyserial
+pyserial-asyncio
 pyqt6

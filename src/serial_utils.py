@@ -1,3 +1,6 @@
+import queue
+import time
+
 import serial
 import serial.tools.list_ports
 from serial import SerialException
@@ -13,6 +16,11 @@ class SerialConnection:
         self.port_name = port_name
         self._connection_lock = threading.Lock()
         self._disconnected = False
+
+        # self.received_data = queue.Queue()
+        # self.reader_thread = threading.Thread(target=self._read_loop)
+        # self.reader_thread.daemon = True
+        # self.reader_thread.start()
 
         self.open()
 
@@ -48,7 +56,11 @@ class SerialConnection:
             self.ser = None
             return False
 
-    def write_data(self, data):
+    def write_data_packet(self, data):
+        packet = f"<{data}>\n".encode() # Wrap in delimiters
+        return self.write_data(packet)
+
+    def write_data(self, data: bytes):
         """Safely write data to serial port with comprehensive error handling"""
         with self._connection_lock:
             if not self.is_connected():
@@ -57,7 +69,7 @@ class SerialConnection:
 
             try:
                 if isinstance(data, str):
-                    data = data.encode('utf-8')
+                    data = data.encode()
 
                 # Check if port is still valid before writing
                 if not self.ser or not self.ser.is_open:
@@ -66,6 +78,7 @@ class SerialConnection:
 
                 self.ser.write(data)
                 self.ser.flush()
+
                 return True
 
             except serial.SerialTimeoutException:
@@ -114,6 +127,26 @@ class SerialConnection:
                 self._disconnected = True
                 self.ser = None
                 return False
+
+    def _read_loop(self):
+        """A function designed to run in a separate thread and get input from connection"""
+        while self.is_connected():
+            try:
+                self.received_data.put("checking for stuff in waiting")
+                if self.ser.in_waiting > 0:
+                    self.received_data.put("stuff in waiting")
+                    data = self.ser.readline().decode().strip()
+                    if data:
+                        self.received_data.put(data)
+            except:
+                pass
+            time.sleep(0.001)
+
+    def get_received_data(self):
+        received = []
+        while not self.received_data.empty():
+            received.append(self.received_data.get())
+        return received
 
     def attempt_reconnect(self):
         """Try to reconnect after an error"""

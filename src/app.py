@@ -52,6 +52,10 @@ class MainWindow(QMainWindow):
         self.reconnect_button.clicked.connect(self.connection.attempt_reconnect)
         connection_layout.addRow(self.reconnect_button)
 
+        self.reboot_button = QPushButton("Reboot")
+        self.reboot_button.clicked.connect(self.soft_reboot)
+        connection_layout.addRow(self.reboot_button)
+
         # Create form group box
         settings_group = QGroupBox("Audio Parameters")
         settings_layout = QFormLayout()
@@ -102,7 +106,7 @@ class MainWindow(QMainWindow):
         # Timer to handle updates
         self.timer = QTimer(self)
         self.timer.setSingleShot(False)
-        self.timer.setInterval(5) # in milliseconds, 200 fps
+        self.timer.setInterval(20)
         self.timer.timeout.connect(self.update_waveform)
         self.timer.start()
 
@@ -117,10 +121,12 @@ class MainWindow(QMainWindow):
         self.stream_analyzer.get_audio_features()
         lightshow = self.stream_analyzer.get_lightshow_data()
         self.connection_status.setText(self.connection.get_status())
-        try:
-            self.connection.write_data(lightshow)
-        except Exception as e:
-            print(e)
+        self.connection.write_data(lightshow)
+        # print(self.connection.get_received_data())
+
+    def soft_reboot(self):
+        self.connection.write_data(b'\x03') # Ctrl-C
+        self.connection.write_data(b'\x04') # Ctrl-D
 
     def apply_settings(self):
         self.window_size = self.window_size_spin.value()
