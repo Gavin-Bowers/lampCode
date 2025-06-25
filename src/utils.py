@@ -9,7 +9,7 @@ def gaussian_kernel1d(sigma, truncate=2.0):
     sigma2 = sigma * sigma
     # make the radius of the filter equal to truncate standard deviations
     radius = int(truncate * sigma + 0.5)
-    exponent_range = np.arange(1)
+    _exponent_range = np.arange(1)
 
     x = np.arange(-radius, radius+1)
     phi_x = np.exp(-0.5 / sigma2 * x ** 2)
@@ -22,26 +22,17 @@ def gaussian_kernel_1d(w, sigma):
     kern1d = np.diff(scipy.stats.norm.cdf(x))
     return kern1d/kern1d.sum()
 
-def get_smoothing_filter(FFT_window_size_ms, filter_length_ms, verbose = 0):
-    buffer_length = round_up_to_even(filter_length_ms / FFT_window_size_ms)+1
+def get_smoothing_filter(fft_window_size_ms, filter_length_ms):
+    buffer_length = round_up_to_even(filter_length_ms / fft_window_size_ms) + 1
     filter_sigma = buffer_length / 3  #How quickly the smoothing influence drops over the buffer length
     filter_weights = gaussian_kernel1d(filter_sigma)[:,np.newaxis]
 
     max_index = np.argmax(filter_weights)
     filter_weights = filter_weights[:max_index+1]
     filter_weights = filter_weights / np.mean(filter_weights)
-
-    if verbose:
-        min_fraction = 100*np.min(filter_weights)/np.max(filter_weights)
-        print('\nApplying temporal smoothing to the FFT features...')
-        print("Smoothing buffer contains %d FFT windows (sigma: %.3f) --> min_contribution: %.3f%%" %(buffer_length, filter_sigma, min_fraction))
-        print("Filter weights:")
-        for i, w in enumerate(filter_weights):
-            print("%02d: %.3f" %(len(filter_weights)-i, w))
-
     return filter_weights
 
-class Numpydatabuffer:
+class NumpyDataBuffer:
     """
     A fast, circular FIFO buffer in numpy with minimal memory interactions by using an array of index pointers
     """

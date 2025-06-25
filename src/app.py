@@ -2,18 +2,21 @@
 import sys
 
 # Local Imports
-from src.streamanalyzer import StreamAnalyzer
+from src.stream_analyzer import StreamAnalyzer
 from src.pico_io import find_micropython
+from src.serial_utils import SerialConnection
 
 # QT6 Imports
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QSpinBox, QHBoxLayout, \
-    QFormLayout, QGroupBox
+    QFormLayout, QGroupBox, QLabel
 
 
 class MainWindow(QMainWindow):
-    ear: StreamAnalyzer | None = None
+    stream_analyzer: StreamAnalyzer | None = None
     port: str | None = None
+    connection: SerialConnection | None = None
+
     frequency_bins: int = 25
     window_size: int = 20
     smoothing_length: int = 20
@@ -23,7 +26,12 @@ class MainWindow(QMainWindow):
 
         self.port = find_micropython()
         if self.port is None:
-            sys.exit(0)
+            print("No lamp found")
+
+        self.connection = SerialConnection(self.port)
+        if not self.connection.is_connected():
+            print(self.connection.get_status())
+
         self.init_ear()
 
         self.setWindowTitle('Lamp Controller')
@@ -31,16 +39,31 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
 
+        connection_group = QGroupBox("Serial Connection")
+        connection_layout = QFormLayout()
+        connection_group.setLayout(connection_layout)
+        main_layout.addWidget(connection_group)
+
+        self.connection_status = QLabel()
+        self.connection_status.setText("Trying to connect")
+        connection_layout.addRow("Connection Status:", self.connection_status)
+
+        self.reconnect_button = QPushButton("Try to reconnect")
+        self.reconnect_button.clicked.connect(self.connection.attempt_reconnect)
+        connection_layout.addRow(self.reconnect_button)
+
         # Create form group box
-        form_group = QGroupBox("Audio Parameters")
-        form_layout = QFormLayout()
+        settings_group = QGroupBox("Audio Parameters")
+        settings_layout = QFormLayout()
+        settings_group.setLayout(settings_layout)
+        main_layout.addWidget(settings_group)
 
         # Frequency bins input
         self.freq_bins_spin = QSpinBox()
         self.freq_bins_spin.setRange(1, 50)
         self.freq_bins_spin.setValue(25)
         self.freq_bins_spin.setToolTip("The FFT features are grouped in bins")
-        form_layout.addRow("Frequency Bins:", self.freq_bins_spin)
+        settings_layout.addRow("Frequency Bins:", self.freq_bins_spin)
 
         # Window size input
         self.window_size_spin = QSpinBox()
@@ -48,7 +71,7 @@ class MainWindow(QMainWindow):
         self.window_size_spin.setValue(20)
         self.window_size_spin.setSuffix(" ms")
         self.window_size_spin.setToolTip("The size of audio samples in ms")
-        form_layout.addRow("Window Size:", self.window_size_spin)
+        settings_layout.addRow("Window Size:", self.window_size_spin)
 
         # Smoothing length input
         self.smoothing_spin = QSpinBox()
@@ -56,10 +79,7 @@ class MainWindow(QMainWindow):
         self.smoothing_spin.setValue(20)
         self.smoothing_spin.setSuffix(" ms")
         self.smoothing_spin.setToolTip("The length of the audio smoothing sample in ms")
-        form_layout.addRow("Smoothing Length:", self.smoothing_spin)
-
-        form_group.setLayout(form_layout)
-        main_layout.addWidget(form_group)
+        settings_layout.addRow("Smoothing Length:", self.smoothing_spin)
 
         # Button layout
         button_layout = QHBoxLayout()
@@ -79,27 +99,28 @@ class MainWindow(QMainWindow):
         # Add stretch to push everything to the top
         main_layout.addStretch()
 
-        # Timer to handle audiovisualizer updates
+        # Timer to handle updates
         self.timer = QTimer(self)
         self.timer.setSingleShot(False)
-        self.timer.setInterval(5) # in milliseconds, ie 200 fps
+        self.timer.setInterval(5) # in milliseconds, 200 fps
         self.timer.timeout.connect(self.update_waveform)
         self.timer.start()
 
     def init_ear(self):
-        self.ear = StreamAnalyzer(
-            device=0, # Pyaudio (portaudio) device index, defaults to first mic input
-            rate=None,  # Audio samplerate, None uses the default source settings
-            FFT_window_size_ms=self.window_size,  # Window size used for the FFT transform
+        self.stream_analyzer = StreamAnalyzer(
+            fft_window_size_ms=self.window_size,  # Window size used for the FFT transform
             smoothing_length_ms=self.smoothing_length,  # Apply some temporal smoothing to reduce noisy features
             n_frequency_bins=self.frequency_bins,  # The FFT features are grouped in bins
-            serial_port=int(self.port[-1]),
-            updates_per_second=4000,  # How often to read the audio stream for new data
-            verbose=False  # Print running statistics (latency, fps, ...)
         )
 
     def update_waveform(self):
-        self.ear.get_audio_features()
+        self.stream_analyzer.get_audio_features()
+        lightshow = self.stream_analyzer.get_lightshow_data()
+        self.connection_status.setText(self.connection.get_status())
+        try:
+            self.connection.write_data(lightshow)
+        except Exception as e:
+            print(e)
 
     def apply_settings(self):
         self.window_size = self.window_size_spin.value()

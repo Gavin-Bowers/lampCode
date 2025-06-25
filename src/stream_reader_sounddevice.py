@@ -20,8 +20,6 @@ class StreamReader:
     def __init__(self,
         device = None,
         rate = None,
-        updates_per_second  = 1000,
-        FFT_window_size = None,
         verbose = False):
 
         print("Available audio devices:")
@@ -124,9 +122,9 @@ class StreamReader:
         if data_windows_to_buffer is None:
             self.data_windows_to_buffer = int(self.updates_per_second / 2) #By default, buffer 0.5 second of audio
         else:
-            self.data_windows_to_buffer = data_windows_to_buffer
+            self.data_windows_to_buffer = int(data_windows_to_buffer)
 
-        self.data_buffer = Numpydatabuffer(self.data_windows_to_buffer, self.update_window_n_frames)
+        self.data_buffer = NumpyDataBuffer(self.data_windows_to_buffer, self.update_window_n_frames)
 
         print("\n--🎙  -- Starting live audio stream...\n")
         self.stream.start()
