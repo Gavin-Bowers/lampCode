@@ -3,7 +3,7 @@ import math
 import pyaudiowpatch as pyaudio
 import numpy as np
 
-from src.utils import NumpyDataBuffer, round_up_to_even
+from utils import NumpyDataBuffer, round_up_to_even
 
 class StreamReader:
 

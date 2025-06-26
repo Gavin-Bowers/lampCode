@@ -1,9 +1,9 @@
 from collections import deque
 from scipy.signal import savgol_filter
 
-from src.fft import getFFT
-from src.utils import *
-from src.stream_reader_pyaudio import StreamReader
+from fft import getFFT
+from utils import *
+from stream_reader_pyaudio import StreamReader
 
 class StreamAnalyzer:
     """

@@ -2,9 +2,9 @@
 import sys
 
 # Local Imports
-from src.stream_analyzer import StreamAnalyzer
-from src.pico_io import find_micropython
-from src.serial_utils import SerialConnection
+from stream_analyzer import StreamAnalyzer
+from pico_io import find_micropython
+from serial_utils import SerialConnection
 
 # QT6 Imports
 from PyQt6.QtCore import QTimer, Qt
@@ -111,12 +111,11 @@ class MainWindow(QMainWindow):
         self.reset_button.clicked.connect(self.reset_defaults)
         button_layout.addWidget(self.reset_button)
 
-        main_layout.addLayout(button_layout)
+        settings_layout.addRow(button_layout)
 
         # Add stretch to push everything to the top
         main_layout.addStretch()
 
-        # Timer to handle updates
         self.timer = QTimer(self)
         self.timer.setSingleShot(False)
         self.timer.setInterval(5)
@@ -143,7 +142,7 @@ class MainWindow(QMainWindow):
         if data is not None and "pico_ready" in data:
             # Only send one line at a time, either a command, or a lightshow update
             if self.commands:
-                self.connection.write_data(self.commands.pop())
+                self.connection.write_data(self.commands.pop(0))
             else:
                 self.connection.write_data(lightshow)
 
