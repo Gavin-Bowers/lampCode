@@ -7,9 +7,9 @@ from src.pico_io import find_micropython
 from src.serial_utils import SerialConnection
 
 # QT6 Imports
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVBoxLayout, QSpinBox, QHBoxLayout, \
-    QFormLayout, QGroupBox, QLabel
+    QFormLayout, QGroupBox, QLabel, QSlider
 
 
 class MainWindow(QMainWindow):
@@ -20,6 +20,7 @@ class MainWindow(QMainWindow):
     frequency_bins: int = 25
     window_size: int = 20
     smoothing_length: int = 20
+    commands = [] # Commands is a list of strings to be sent to the pico
 
     def __init__(self):
         super().__init__()
@@ -52,6 +53,21 @@ class MainWindow(QMainWindow):
         self.reboot_button = QPushButton("Reboot")
         self.reboot_button.clicked.connect(self.soft_reboot)
         connection_layout.addRow(self.reboot_button)
+
+        self.change_mode_button = QPushButton("Change Mode")
+        self.change_mode_button.clicked.connect(self.change_mode)
+        connection_layout.addRow(self.change_mode_button)
+
+        self.change_color_button = QPushButton("Change Color Scheme")
+        self.change_color_button.clicked.connect(self.change_color)
+        connection_layout.addRow(self.change_color_button)
+
+        self.brightness_slider = QSlider(Qt.Orientation.Horizontal)
+        self.brightness_slider.setMinimum(0)
+        self.brightness_slider.setMaximum(100)
+        self.brightness_slider.setValue(100)
+        connection_layout.addRow(self.brightness_slider)
+        self.brightness_slider.valueChanged.connect(self.change_brightness)
 
         # Create form group box
         settings_group = QGroupBox("Audio Parameters")
@@ -103,7 +119,7 @@ class MainWindow(QMainWindow):
         # Timer to handle updates
         self.timer = QTimer(self)
         self.timer.setSingleShot(False)
-        self.timer.setInterval(20)
+        self.timer.setInterval(5)
         self.timer.timeout.connect(self.update_waveform)
         self.timer.start()
 
@@ -118,8 +134,18 @@ class MainWindow(QMainWindow):
         self.stream_analyzer.get_audio_features()
         lightshow = self.stream_analyzer.get_lightshow_data()
         self.connection_status.setText(self.connection.status)
-        self.connection.write_data(lightshow)
-        # print(self.connection.get_received_data())
+        # self.connection.write_data(b'hello pico\r') # The carriage return (\r) is REQUIRED for pico to respond
+
+        # Call and response system ensures that the pico only gets input when it's ready
+        # Although there are still occasional instances of data being mangled, so that still needs to be handled
+        data = self.connection.read_data()
+        if data is not None and not "pico_ready" in data and not "lightshow_data" in data: print(data)
+        if data is not None and "pico_ready" in data:
+            # Only send one line at a time, either a command, or a lightshow update
+            if self.commands:
+                self.connection.write_data(self.commands.pop())
+            else:
+                self.connection.write_data(lightshow)
 
     def soft_reboot(self):
         self.connection.write_data(b'\x03') # Ctrl-C
@@ -137,6 +163,16 @@ class MainWindow(QMainWindow):
         self.window_size_spin.setValue(20)
         self.smoothing_spin.setValue(20)
         self.apply_settings()
+
+    def change_color(self):
+        self.commands.append(b'change_color\r')
+
+    def change_mode(self):
+        self.commands.append(b'change_mode\r')
+
+    def change_brightness(self):
+        brightness = self.brightness_slider.value()
+        self.commands.append(f'change_brightness {brightness}\r'.encode())
 
 def main():
     app = QApplication([])

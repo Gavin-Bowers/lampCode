@@ -124,7 +124,7 @@ class StreamAnalyzer:
         return self.fftx, self.fft, self.frequency_bin_centres, self.frequency_bin_energies
 
     def get_lightshow_data(self) -> bytes:
-        lightshow = b''
+        lightshow = b'lightshow_data '
         i = 0
         for bin_index in range(self.n_frequency_bins):
             self.frequency_bin_energies[bin_index] = np.mean(self.fft[self.fftx_indices_per_bin[bin_index]])
@@ -132,6 +132,6 @@ class StreamAnalyzer:
                 lightshow += str(math.ceil(np.minimum(self.frequency_bin_energies[bin_index] * 1.6, 100.0))).encode() + b' '
                 i += 1
 
-        lightshow += b'\n\r'
+        lightshow += b'\r'
         # print(lightshow)
         return lightshow

@@ -1,6 +1,5 @@
 import serial
 import serial.tools.list_ports
-from serial import SerialException
 
 class SerialConnection:
 
@@ -11,7 +10,7 @@ class SerialConnection:
         self.open()
 
     def write_data_packet(self, data):
-        packet = f"<{data}>\n".encode() # Wrap in delimiters
+        packet = f"<{data}>\r".encode() # Wrap in delimiters
         return self.write_data(packet)
 
     def write_data(self, data: bytes):
@@ -22,6 +21,7 @@ class SerialConnection:
             self.ser.flush()
             return True
         except serial.SerialTimeoutException: # Try to recover from timeout
+            print("timeout")
             if self.ser and self.ser.is_open:
                 self.ser.reset_input_buffer()
                 self.ser.reset_output_buffer()
@@ -36,6 +36,16 @@ class SerialConnection:
             self.status = f'Error writing data: {e}'
             self.ser = None
             return False
+
+    def read_data(self) -> str | None:
+        if self.ser is None:
+            return None
+        try:
+            if self.ser.in_waiting > 0:
+                return self.ser.readline().decode('utf-8').rstrip()
+            return None
+        except Exception as e:
+            self.status = f'Error reading data: {e}'
 
     def attempt_reconnect(self):
         if self.ser:
