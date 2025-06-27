@@ -9,7 +9,7 @@ Audio visualizer adapted from [aiXander's project](https://github.com/aiXander/R
 
 ### Building
 * Install Nuitka with `pip install nuitka`
-* Build with `python -m nuitka --enable-plugin=pyqt6 --include-package=scipy._cyutility --mode=onefile .\src\app.py`
+* Build with `python -m nuitka --enable-plugin=pyqt6 --include-package=scipy._cyutility --mode=onefile --windows-console-mode=disable --product-name="Lamp Controller" --windows-icon-from-ico=resources/icon.ico --file-version=1.0.0 .\src\app.py`
 
 ### Lamp controls
 | Button Input | Setting               |
