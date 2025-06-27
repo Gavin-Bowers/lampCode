@@ -1,4 +1,5 @@
 # Standard library
+import os
 import sys
 
 # Local Imports
@@ -118,8 +119,8 @@ class MainWindow(QMainWindow):
 
         self.timer = QTimer(self)
         self.timer.setSingleShot(False)
-        self.timer.setInterval(5)
-        self.timer.timeout.connect(self.update_waveform)
+        self.timer.setInterval(1)
+        self.timer.timeout.connect(self.main_loop)
         self.timer.start()
 
     def init_ear(self):
@@ -129,11 +130,9 @@ class MainWindow(QMainWindow):
             n_frequency_bins=self.frequency_bins,  # The FFT features are grouped in bins
         )
 
-    def update_waveform(self):
-        self.stream_analyzer.get_audio_features()
-        lightshow = self.stream_analyzer.get_lightshow_data()
-        self.connection_status.setText(self.connection.status)
-        # self.connection.write_data(b'hello pico\r') # The carriage return (\r) is REQUIRED for pico to respond
+    def main_loop(self):
+        if self.connection_status.text() != self.connection.status:
+            self.connection_status.setText(self.connection.status)
 
         # Call and response system ensures that the pico only gets input when it's ready
         # Although there are still occasional instances of data being mangled, so that still needs to be handled
@@ -144,6 +143,8 @@ class MainWindow(QMainWindow):
             if self.commands:
                 self.connection.write_data(self.commands.pop(0))
             else:
+                self.stream_analyzer.get_audio_features()
+                lightshow = self.stream_analyzer.get_lightshow_data()
                 self.connection.write_data(lightshow)
 
     def soft_reboot(self):
@@ -162,6 +163,8 @@ class MainWindow(QMainWindow):
         self.window_size_spin.setValue(20)
         self.smoothing_spin.setValue(20)
         self.apply_settings()
+
+    # The carriage return (\r) is REQUIRED for pico to respond
 
     def change_color(self):
         self.commands.append(b'change_color\r')

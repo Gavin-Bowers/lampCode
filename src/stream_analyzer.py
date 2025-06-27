@@ -72,11 +72,6 @@ class StreamAnalyzer:
         self.rolling_bin_values = NumpyDataBuffer(self.rolling_stats_window_n, self.n_frequency_bins, start_value = 25000)
         self.bin_mean_values = np.ones(self.n_frequency_bins)
 
-    def update_rolling_stats(self):
-        self.rolling_bin_values.append_data(self.frequency_bin_energies)
-        self.bin_mean_values  = np.mean(self.rolling_bin_values.get_buffer_data(), axis=0)
-        self.bin_mean_values  = np.maximum((1-self.equalizer_strength)*np.mean(self.bin_mean_values), self.bin_mean_values)
-
     def update_features(self):
 
         latest_data_window = self.stream_reader.data_buffer.get_most_recent(self.FFT_window_size)
@@ -112,7 +107,6 @@ class StreamAnalyzer:
         if self.stream_reader.new_data:  #Check if the stream_reader has new audio data we need to process
 
             self.update_features()
-            self.update_rolling_stats()
             self.stream_reader.new_data = False
 
             self.frequency_bin_energies = np.nan_to_num(self.frequency_bin_energies, copy=True)
