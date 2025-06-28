@@ -7,12 +7,12 @@ from stream_reader_pyaudio import StreamReader
 
 class StreamAnalyzer:
     """
-    The Audio_Analyzer class provides access to continuously recorded
-    (and mathematically processed) audio data.
+    Provides access to real-time frequency distribution of audio data.
 
     Arguments:
-        fft_window_size_ms: int:  Time window size (in ms) to use for the FFT transform
-
+        fft_window_size_ms: int:    Time window size (in ms) to use for the FFT transform
+        smoothing_length_ms: int:   Amount of time to smooth the audio data
+        n_frequency_bins: int:      Number of frequency bins to use
     """
 
     def __init__(self,
@@ -103,11 +103,9 @@ class StreamAnalyzer:
         return
 
     def get_audio_features(self):
-
         if self.stream_reader.new_data:  #Check if the stream_reader has new audio data we need to process
-
-            self.update_features()
             self.stream_reader.new_data = False
+            self.update_features()
 
             self.frequency_bin_energies = np.nan_to_num(self.frequency_bin_energies, copy=True)
             if self.apply_frequency_smoothing:

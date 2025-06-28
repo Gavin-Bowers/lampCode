@@ -3,9 +3,10 @@ import queue
 import sys, threading
 import time
 
+from PyQt6.QtGui import QIcon
+
 # Local Imports
 from stream_analyzer import StreamAnalyzer
-from pico_io import find_micropython
 from serial_utils import SerialConnection
 
 # QT6 Imports
@@ -29,7 +30,6 @@ class ThreadSafeData:
 
 class MainWindow(QMainWindow):
     stream_analyzer: StreamAnalyzer | None = None
-    port: str | None = None
     connection: SerialConnection | None = None
 
     frequency_bins: int = 25
@@ -43,14 +43,12 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.port = find_micropython()
-        if self.port is None:
-            print("No lamp found")
-
-        self.connection = SerialConnection(self.port)
+        self.connection = SerialConnection()
         self.init_ear()
 
         self.setWindowTitle('Lamp Controller')
+        # self.setWindowIcon(QIcon('resources/icon.ico'))
+
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
@@ -192,13 +190,13 @@ class MainWindow(QMainWindow):
                 else:
                     # self.connection.write_data(b'lightshow_data 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \r')
                     self.connection.write_data(self.lightshow_data.read())
-            time.sleep(0.01)
+            time.sleep(0.001)
 
     def lightshow_worker(self):
         while True:
             self.stream_analyzer.get_audio_features()
             self.lightshow_data.set(self.stream_analyzer.get_lightshow_data())
-            time.sleep(0.01)
+            time.sleep(0.001)
 
     # The carriage return (\r) is REQUIRED for pico to respond
 
