@@ -1,6 +1,7 @@
 # Standard library
-import os
-import sys
+import queue
+import sys, threading
+import time
 
 # Local Imports
 from stream_analyzer import StreamAnalyzer
@@ -13,6 +14,19 @@ from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton, QVB
     QFormLayout, QGroupBox, QLabel, QSlider
 
 
+class ThreadSafeData:
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._data: bytes = b''
+
+    def set(self, data: bytes):
+        with self._lock:
+            self._data = data
+
+    def read(self):
+        with self._lock:
+            return self._data
+
 class MainWindow(QMainWindow):
     stream_analyzer: StreamAnalyzer | None = None
     port: str | None = None
@@ -21,7 +35,10 @@ class MainWindow(QMainWindow):
     frequency_bins: int = 25
     window_size: int = 20
     smoothing_length: int = 20
-    commands = [] # Commands is a list of strings to be sent to the pico
+    commands = queue.Queue() # Commands is a queue of strings to be sent to the pico
+    brightness = 100
+    new_brightness = 100
+    lightshow_data = ThreadSafeData()
 
     def __init__(self):
         super().__init__()
@@ -123,6 +140,14 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.main_loop)
         self.timer.start()
 
+        worker_thread = threading.Thread(target=self.lightshow_worker)
+        worker_thread.daemon = True # Dies when main thread dies
+        worker_thread.start()
+
+        comm_worker_thread = threading.Thread(target=self.communication_worker)
+        comm_worker_thread.daemon = True
+        comm_worker_thread.start()
+
     def init_ear(self):
         self.stream_analyzer = StreamAnalyzer(
             fft_window_size_ms=self.window_size,  # Window size used for the FFT transform
@@ -133,19 +158,6 @@ class MainWindow(QMainWindow):
     def main_loop(self):
         if self.connection_status.text() != self.connection.status:
             self.connection_status.setText(self.connection.status)
-
-        # Call and response system ensures that the pico only gets input when it's ready
-        # Although there are still occasional instances of data being mangled, so that still needs to be handled
-        data = self.connection.read_data()
-        if data is not None and not "pico_ready" in data and not "lightshow_data" in data: print(data)
-        if data is not None and "pico_ready" in data:
-            # Only send one line at a time, either a command, or a lightshow update
-            if self.commands:
-                self.connection.write_data(self.commands.pop(0))
-            else:
-                self.stream_analyzer.get_audio_features()
-                lightshow = self.stream_analyzer.get_lightshow_data()
-                self.connection.write_data(lightshow)
 
     def soft_reboot(self):
         self.connection.write_data(b'\x03') # Ctrl-C
@@ -164,17 +176,40 @@ class MainWindow(QMainWindow):
         self.smoothing_spin.setValue(20)
         self.apply_settings()
 
+    def communication_worker(self):
+        while True:
+            # Call and response system ensures that the pico only gets input when it's ready
+            # Although there are still occasional instances of data being mangled, so that still needs to be handled
+            data = self.connection.read_data()
+            # if data is not None and not "pico_ready" in data and not "lightshow_data" in data: print(data)
+            if data is not None and "pico_ready" in data:
+                # Only send one line at a time, either a command, or a lightshow update
+                if not self.commands.empty():
+                    self.connection.write_data(self.commands.get_nowait())
+                elif self.brightness != self.new_brightness:
+                    self.brightness = self.new_brightness
+                    self.connection.write_data(f'change_brightness {self.brightness}\r'.encode())
+                else:
+                    # self.connection.write_data(b'lightshow_data 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 \r')
+                    self.connection.write_data(self.lightshow_data.read())
+            time.sleep(0.01)
+
+    def lightshow_worker(self):
+        while True:
+            self.stream_analyzer.get_audio_features()
+            self.lightshow_data.set(self.stream_analyzer.get_lightshow_data())
+            time.sleep(0.01)
+
     # The carriage return (\r) is REQUIRED for pico to respond
 
     def change_color(self):
-        self.commands.append(b'change_color\r')
+        self.commands.put(b'change_color\r')
 
     def change_mode(self):
-        self.commands.append(b'change_mode\r')
+        self.commands.put(b'change_mode\r')
 
     def change_brightness(self):
-        brightness = self.brightness_slider.value()
-        self.commands.append(f'change_brightness {brightness}\r'.encode())
+        self.new_brightness = self.brightness_slider.value()
 
 def main():
     app = QApplication([])
